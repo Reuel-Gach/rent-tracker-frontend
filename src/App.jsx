@@ -3,7 +3,6 @@ import { LayoutDashboard, Calculator, FileEdit } from 'lucide-react';
 import WaterCalculator from './pages/WaterCalculator';
 import DataEntry from './pages/DataEntry';
 import Dashboard from './pages/Dashboard';
-import { Analytics } from "@vercel/analytics/next"
 
 function App() {
   return (
