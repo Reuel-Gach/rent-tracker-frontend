@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { UserPlus, FileText, Save, Trash2 } from 'lucide-react';
+import { UserPlus, FileText, Save, Trash2, Settings, Loader2 } from 'lucide-react';
 
 const DataEntry = () => {
   const [tenants, setTenants] = useState([]);
   const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
+  const [isLoading, setIsLoading] = useState(true); // Tracks Render wake-up
 
   // Tenant Form State
   const [tenantName, setTenantName] = useState('');
@@ -18,19 +19,43 @@ const DataEntry = () => {
   const [prevReading, setPrevReading] = useState('');
   const [currReading, setCurrReading] = useState('');
 
-  // Fetch tenants when page loads
-  const fetchTenants = async () => {
+  // Settings State
+  const [waterRate, setWaterRate] = useState('');
+  const [isSavingRate, setIsSavingRate] = useState(false);
+
+  // Fetch initial data
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch Tenants
+        const tenantRes = await axios.get('http://localhost:5000/api/tenants');
+        if (Array.isArray(tenantRes.data)) setTenants(tenantRes.data);
+
+        // Fetch current water rate
+        const rateRes = await axios.get('http://localhost:5000/api/settings/water-rate');
+        setWaterRate(rateRes.data.rate);
+      } catch (error) {
+        console.error('Error fetching data (Server might be waking up):', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleUpdateWaterRate = async (e) => {
+    e.preventDefault();
+    setIsSavingRate(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/tenants');
-      setTenants(res.data);
+      await axios.post('http://localhost:5000/api/settings/water-rate', { rate: waterRate });
+      setStatusMsg({ text: 'Water rate updated globally!', type: 'success' });
     } catch (error) {
-      console.error('Error fetching tenants:', error);
+      setStatusMsg({ text: 'Error updating water rate.', type: 'error' });
+    } finally {
+      setIsSavingRate(false);
     }
   };
-
-  useEffect(() => {
-    fetchTenants();
-  }, []);
 
   const handleAddTenant = async (e) => {
     e.preventDefault();
@@ -42,7 +67,10 @@ const DataEntry = () => {
       });
       setStatusMsg({ text: 'Tenant added successfully!', type: 'success' });
       setTenantName(''); setRoomNumber(''); setPhoneNumber('');
-      fetchTenants(); // Refresh dropdown list
+      
+      // Refresh list
+      const res = await axios.get('http://localhost:5000/api/tenants');
+      setTenants(res.data);
     } catch (error) {
       setStatusMsg({ text: 'Error adding tenant.', type: 'error' });
     }
@@ -53,7 +81,7 @@ const DataEntry = () => {
     try {
       await axios.post('http://localhost:5000/api/bills', {
         tenant_id: selectedTenant,
-        billing_month: billingMonth + '-01', // Format as YYYY-MM-01 for the database
+        billing_month: billingMonth + '-01',
         rent_amount: rentAmount || 0,
         previous_water_reading: prevReading,
         current_water_reading: currReading
@@ -66,7 +94,6 @@ const DataEntry = () => {
     }
   };
 
-  // NEW: Delete Tenant Function
   const handleDeleteTenant = async (id, name) => {
     const isConfirmed = window.confirm(`Are you sure you want to delete ${name}?`);
     if (!isConfirmed) return;
@@ -74,9 +101,9 @@ const DataEntry = () => {
     try {
       await axios.delete(`http://localhost:5000/api/tenants/${id}`);
       setStatusMsg({ text: 'Tenant deleted successfully!', type: 'success' });
-      fetchTenants(); // Refresh the list after deleting
+      const res = await axios.get('http://localhost:5000/api/tenants');
+      setTenants(res.data);
     } catch (error) {
-      console.error('Error deleting tenant:', error);
       setStatusMsg({ text: 'Cannot delete tenant. They likely have existing billing records.', type: 'error' });
     }
   };
@@ -84,6 +111,25 @@ const DataEntry = () => {
   return (
     <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
       
+      {/* NEW: Global Settings Section */}
+      <div className="col-span-1 md:col-span-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
+        <div className="p-4 border-b border-indigo-100 flex items-center justify-between">
+          <div className="flex items-center">
+            <Settings className="text-indigo-600 w-6 h-6 mr-2" />
+            <h2 className="text-lg font-semibold text-indigo-900">System Settings</h2>
+          </div>
+        </div>
+        <form onSubmit={handleUpdateWaterRate} className="p-4 flex items-end gap-4">
+          <div className="flex-1 max-w-xs">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Current Water Rate (Per Unit)</label>
+            <input type="number" required value={waterRate} onChange={(e) => setWaterRate(e.target.value)} className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+          </div>
+          <button type="submit" disabled={isSavingRate || isLoading} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+            {isSavingRate ? 'Saving...' : 'Update Price'}
+          </button>
+        </form>
+      </div>
+
       {/* Add New Tenant Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-fit">
         <div className="bg-blue-50 p-4 border-b border-blue-100 flex items-center">
@@ -118,8 +164,8 @@ const DataEntry = () => {
         <form onSubmit={handleAddBill} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Tenant</label>
-            <select required value={selectedTenant} onChange={(e) => setSelectedTenant(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-white">
-              <option value="">-- Choose a tenant --</option>
+            <select required value={selectedTenant} onChange={(e) => setSelectedTenant(e.target.value)} disabled={isLoading} className="w-full px-4 py-2 border rounded-lg bg-white disabled:bg-gray-100">
+              <option value="">{isLoading ? "Loading tenants..." : "-- Choose a tenant --"}</option>
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>{t.name} (Room {t.room_number})</option>
               ))}
@@ -156,10 +202,11 @@ const DataEntry = () => {
         </div>
       )}
 
-      {/* NEW: Existing Tenants Table */}
+      {/* Existing Tenants Table */}
       <div className="col-span-1 md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-4">
-        <div className="bg-gray-50 p-4 border-b border-gray-200">
+        <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-800">Manage Tenants</h2>
+          {isLoading && <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -172,23 +219,31 @@ const DataEntry = () => {
               </tr>
             </thead>
             <tbody>
-              {tenants.map((t) => (
-                <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                  <td className="p-4 text-gray-800 font-medium">{t.name}</td>
-                  <td className="p-4 text-gray-600">{t.room_number}</td>
-                  <td className="p-4 text-gray-600">{t.phone_number || 'N/A'}</td>
-                  <td className="p-4 text-center">
-                    <button 
-                      onClick={() => handleDeleteTenant(t.id, t.name)}
-                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                      title="Delete Tenant"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+              {isLoading && tenants.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="p-8 text-center text-gray-500 animate-pulse">
+                    Waking up database... this can take up to 50 seconds.
                   </td>
                 </tr>
-              ))}
-              {tenants.length === 0 && (
+              ) : (
+                tenants.map((t) => (
+                  <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                    <td className="p-4 text-gray-800 font-medium">{t.name}</td>
+                    <td className="p-4 text-gray-600">{t.room_number}</td>
+                    <td className="p-4 text-gray-600">{t.phone_number || 'N/A'}</td>
+                    <td className="p-4 text-center">
+                      <button 
+                        onClick={() => handleDeleteTenant(t.id, t.name)}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                        title="Delete Tenant"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+              {!isLoading && tenants.length === 0 && (
                 <tr>
                   <td colSpan="4" className="p-8 text-center text-gray-400">
                     No tenants found. Add one above!
