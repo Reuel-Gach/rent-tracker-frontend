@@ -19,7 +19,7 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/bills');
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/bills');
       const data = res.data;
       setBills(data);
 
@@ -59,7 +59,7 @@ const Dashboard = () => {
     if (!isConfirmed) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/bills/${id}`);
+      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/bills/${id}`);
       fetchDashboardData();
     } catch (error) {
       console.error('Error deleting record:', error);

@@ -21,7 +21,7 @@ const DataEntry = () => {
   // Fetch tenants when page loads
   const fetchTenants = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/tenants');
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
       setTenants(res.data);
     } catch (error) {
       console.error('Error fetching tenants:', error);
@@ -35,7 +35,7 @@ const DataEntry = () => {
   const handleAddTenant = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/tenants', {
+      await axios.post('https://rent-tracker-backend-gvom.onrender.com/api/tenants', {
         name: tenantName,
         room_number: roomNumber,
         phone_number: phoneNumber
@@ -51,7 +51,7 @@ const DataEntry = () => {
   const handleAddBill = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/bills', {
+      await axios.post('https://rent-tracker-backend-gvom.onrender.com/api/bills', {
         tenant_id: selectedTenant,
         billing_month: billingMonth + '-01', // Format as YYYY-MM-01 for the database
         rent_amount: rentAmount || 0,
