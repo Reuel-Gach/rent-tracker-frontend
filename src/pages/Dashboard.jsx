@@ -13,7 +13,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ totalRevenue: 0, totalRent: 0, totalWater: 0 });
   const [chartData, setChartData] = useState([]);
   
-  // New State for Search and Chart Type
+  // State for Search and Chart Type
   const [searchTerm, setSearchTerm] = useState('');
   const [chartType, setChartType] = useState('bar');
 

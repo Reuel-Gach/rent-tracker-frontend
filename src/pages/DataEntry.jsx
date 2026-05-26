@@ -29,11 +29,11 @@ const DataEntry = () => {
       setIsLoading(true);
       try {
         // Fetch Tenants
-        const tenantRes = await axios.get('http://localhost:5000/api/tenants');
+        const tenantRes = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
         if (Array.isArray(tenantRes.data)) setTenants(tenantRes.data);
 
         // Fetch current water rate
-        const rateRes = await axios.get('http://localhost:5000/api/settings/water-rate');
+        const rateRes = await axios.get(' https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate');
         setWaterRate(rateRes.data.rate);
       } catch (error) {
         console.error('Error fetching data (Server might be waking up):', error);
@@ -48,7 +48,7 @@ const DataEntry = () => {
     e.preventDefault();
     setIsSavingRate(true);
     try {
-      await axios.post('http://localhost:5000/api/settings/water-rate', { rate: waterRate });
+      await axios.post(' https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate', { rate: waterRate });
       setStatusMsg({ text: 'Water rate updated globally!', type: 'success' });
     } catch (error) {
       setStatusMsg({ text: 'Error updating water rate.', type: 'error' });
@@ -60,7 +60,7 @@ const DataEntry = () => {
   const handleAddTenant = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/tenants', {
+      await axios.post(' https://rent-tracker-backend-gvom.onrender.com/api/tenants', {
         name: tenantName,
         room_number: roomNumber,
         phone_number: phoneNumber
@@ -69,7 +69,7 @@ const DataEntry = () => {
       setTenantName(''); setRoomNumber(''); setPhoneNumber('');
       
       // Refresh list
-      const res = await axios.get('http://localhost:5000/api/tenants');
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
       setTenants(res.data);
     } catch (error) {
       setStatusMsg({ text: 'Error adding tenant.', type: 'error' });
@@ -79,7 +79,7 @@ const DataEntry = () => {
   const handleAddBill = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/bills', {
+      await axios.post('https://rent-tracker-backend-gvom.onrender.com/api/bills', {
         tenant_id: selectedTenant,
         billing_month: billingMonth + '-01',
         rent_amount: rentAmount || 0,
@@ -99,9 +99,9 @@ const DataEntry = () => {
     if (!isConfirmed) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/tenants/${id}`);
+      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/tenants/${id}`);
       setStatusMsg({ text: 'Tenant deleted successfully!', type: 'success' });
-      const res = await axios.get('http://localhost:5000/api/tenants');
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
       setTenants(res.data);
     } catch (error) {
       setStatusMsg({ text: 'Cannot delete tenant. They likely have existing billing records.', type: 'error' });
