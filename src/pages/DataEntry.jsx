@@ -141,6 +141,43 @@ const DataEntry = () => {
         </div>
       )}
 
+      {/* Current Tenants List */}
+      <div className="col-span-1 md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 mt-8">
+        <div className="p-4 border-b font-semibold text-gray-800">Existing Tenants</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 text-sm">
+              <tr>
+                <th className="p-3">Name</th>
+                <th className="p-3">Room</th>
+                <th className="p-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenants.map((t) => (
+                <tr key={t.id} className="border-t">
+                  <td className="p-3">{t.name}</td>
+                  <td className="p-3">{t.room_number}</td>
+                  <td className="p-3">
+                    <button 
+                      onClick={async () => {
+                        if(window.confirm(`Delete ${t.name}?`)) {
+                          await axios.delete(` https://rent-tracker-backend-gvom.onrender.com/api/tenants/${t.id}`);
+                          fetchTenants(); // Refresh the list
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 };
