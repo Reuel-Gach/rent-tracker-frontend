@@ -7,8 +7,12 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { DollarSign, Droplets, TrendingUp, Trash2, Search, LayoutTemplate } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 
 const Dashboard = () => {
+  // Grab the unique Clerk User ID
+  const { userId } = useAuth();
+
   const [bills, setBills] = useState([]);
   const [stats, setStats] = useState({ totalRevenue: 0, totalRent: 0, totalWater: 0 });
   const [chartData, setChartData] = useState([]);
@@ -17,9 +21,16 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [chartType, setChartType] = useState('bar');
 
+  // Nametag helper: Attach this to every request
+  const getAuthHeader = () => ({ headers: { 'x-user-id': userId } });
+
   const fetchDashboardData = async () => {
+    // Wait until Clerk has actually loaded the ID before fetching!
+    if (!userId) return;
+
     try {
-      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/bills');
+      // Add the header to the GET request
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/bills', getAuthHeader());
       const data = res.data;
       setBills(data);
 
@@ -52,15 +63,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [userId]); // Add userId to dependency array so it runs when the ID is ready
 
   const handleDelete = async (id) => {
     const isConfirmed = window.confirm("Are you sure you want to delete this record? This cannot be undone.");
     if (!isConfirmed) return;
 
     try {
-      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/bills/${id}`);
-      fetchDashboardData();
+      // Add the header to the DELETE request
+      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/bills/${id}`, getAuthHeader());
+      fetchDashboardData(); // Refresh data after deletion
     } catch (error) {
       console.error('Error deleting record:', error);
       alert('Failed to delete the record.');

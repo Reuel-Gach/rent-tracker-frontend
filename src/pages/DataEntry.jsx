@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { UserPlus, FileText, Save, Trash2, Settings, Loader2 } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 
 const DataEntry = () => {
+  // Grab the unique Clerk User ID
+  const { userId } = useAuth();
+
   const [tenants, setTenants] = useState([]);
   const [statusMsg, setStatusMsg] = useState({ text: '', type: '' });
-  const [isLoading, setIsLoading] = useState(true); // Tracks Render wake-up
+  const [isLoading, setIsLoading] = useState(true);
 
   // Tenant Form State
   const [tenantName, setTenantName] = useState('');
@@ -23,32 +27,44 @@ const DataEntry = () => {
   const [waterRate, setWaterRate] = useState('');
   const [isSavingRate, setIsSavingRate] = useState(false);
 
+  // Nametag helper: Attach this to every single request
+  const getAuthHeader = () => ({ headers: { 'x-user-id': userId } });
+
+  // Auto-hide notifications after 3 seconds
+  useEffect(() => {
+    if (statusMsg.text) {
+      const timer = setTimeout(() => setStatusMsg({ text: '', type: '' }), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMsg]);
+
   // Fetch initial data
   useEffect(() => {
+    // Wait until Clerk has actually loaded the ID before fetching!
+    if (!userId) return;
+
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Fetch Tenants
-        const tenantRes = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
+        const tenantRes = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants', getAuthHeader());
         if (Array.isArray(tenantRes.data)) setTenants(tenantRes.data);
 
-        // Fetch current water rate
-        const rateRes = await axios.get(' https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate');
+        const rateRes = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate', getAuthHeader());
         setWaterRate(rateRes.data.rate);
       } catch (error) {
-        console.error('Error fetching data (Server might be waking up):', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [userId]);
 
   const handleUpdateWaterRate = async (e) => {
     e.preventDefault();
     setIsSavingRate(true);
     try {
-      await axios.post(' https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate', { rate: waterRate });
+      await axios.post('https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate', { rate: waterRate }, getAuthHeader());
       setStatusMsg({ text: 'Water rate updated globally!', type: 'success' });
     } catch (error) {
       setStatusMsg({ text: 'Error updating water rate.', type: 'error' });
@@ -60,16 +76,16 @@ const DataEntry = () => {
   const handleAddTenant = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(' https://rent-tracker-backend-gvom.onrender.com/api/tenants', {
+      await axios.post('https://rent-tracker-backend-gvom.onrender.com/api/tenants', {
         name: tenantName,
         room_number: roomNumber,
         phone_number: phoneNumber
-      });
+      }, getAuthHeader());
+      
       setStatusMsg({ text: 'Tenant added successfully!', type: 'success' });
       setTenantName(''); setRoomNumber(''); setPhoneNumber('');
       
-      // Refresh list
-      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants', getAuthHeader());
       setTenants(res.data);
     } catch (error) {
       setStatusMsg({ text: 'Error adding tenant.', type: 'error' });
@@ -85,7 +101,8 @@ const DataEntry = () => {
         rent_amount: rentAmount || 0,
         previous_water_reading: prevReading,
         current_water_reading: currReading
-      });
+      }, getAuthHeader());
+      
       setStatusMsg({ text: 'Monthly bill saved successfully!', type: 'success' });
       setSelectedTenant(''); setBillingMonth(''); setRentAmount(''); 
       setPrevReading(''); setCurrReading('');
@@ -99,9 +116,10 @@ const DataEntry = () => {
     if (!isConfirmed) return;
 
     try {
-      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/tenants/${id}`);
+      await axios.delete(`https://rent-tracker-backend-gvom.onrender.com/api/tenants/${id}`, getAuthHeader());
       setStatusMsg({ text: 'Tenant deleted successfully!', type: 'success' });
-      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants');
+      
+      const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/tenants', getAuthHeader());
       setTenants(res.data);
     } catch (error) {
       setStatusMsg({ text: 'Cannot delete tenant. They likely have existing billing records.', type: 'error' });
@@ -109,9 +127,29 @@ const DataEntry = () => {
   };
 
   return (
-    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 relative">
       
-      {/* NEW: Global Settings Section */}
+      {/* Top-Center Floating Toast Notification */}
+      {statusMsg.text && (
+        <div 
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex items-center p-4 rounded-lg shadow-2xl border transition-all duration-500 ease-in-out ${
+            statusMsg.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+          style={{ minWidth: '350px' }}
+        >
+          <div className="flex-1 text-sm font-semibold text-center">
+            {statusMsg.text}
+          </div>
+          <button 
+            onClick={() => setStatusMsg({ text: '', type: '' })} 
+            className="ml-4 p-1 hover:bg-black/5 rounded-full transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Global Settings Section */}
       <div className="col-span-1 md:col-span-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
         <div className="p-4 border-b border-indigo-100 flex items-center justify-between">
           <div className="flex items-center">
@@ -195,13 +233,6 @@ const DataEntry = () => {
         </form>
       </div>
 
-      {/* Status Notifications */}
-      {statusMsg.text && (
-        <div className={`col-span-1 md:col-span-2 p-4 rounded-lg text-center font-medium ${statusMsg.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-          {statusMsg.text}
-        </div>
-      )}
-
       {/* Existing Tenants Table */}
       <div className="col-span-1 md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-4">
         <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
@@ -222,7 +253,7 @@ const DataEntry = () => {
               {isLoading && tenants.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="p-8 text-center text-gray-500 animate-pulse">
-                    Waking up database... this can take up to 50 seconds.
+                    Loading your data...
                   </td>
                 </tr>
               ) : (

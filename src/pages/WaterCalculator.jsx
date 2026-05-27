@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Droplets, Calculator, Loader2 } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 
 const WaterCalculator = () => {
+  // Grab the unique Clerk User ID
+  const { userId } = useAuth();
+
   const [previousReading, setPreviousReading] = useState('');
   const [currentReading, setCurrentReading] = useState('');
   const [waterRate, setWaterRate] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Nametag helper: Attach this to the request
+  const getAuthHeader = () => ({ headers: { 'x-user-id': userId } });
+
   // Fetch the live water rate from the database
   useEffect(() => {
+    // Wait until Clerk has actually loaded the ID before fetching!
+    if (!userId) return;
+
     const fetchWaterRate = async () => {
+      setIsLoading(true);
       try {
-        const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate');
+        // Add the header to the GET request
+        const res = await axios.get('https://rent-tracker-backend-gvom.onrender.com/api/settings/water-rate', getAuthHeader());
         setWaterRate(res.data.rate);
       } catch (error) {
         console.error('Error fetching water rate:', error);
@@ -24,7 +36,7 @@ const WaterCalculator = () => {
     };
 
     fetchWaterRate();
-  }, []);
+  }, [userId]); // Run this effect whenever the userId becomes available
 
   // Calculate units, ensuring it doesn't drop below zero if inputs are flipped
   const prev = parseInt(previousReading) || 0;
